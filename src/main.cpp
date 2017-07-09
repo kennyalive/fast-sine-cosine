@@ -7,63 +7,25 @@
 float fast_sine(float x) {
     constexpr float PI = 3.14159265358f;
     constexpr float B = 4.0f / PI;
-    constexpr float C = 4.0f / (PI * PI);
+    constexpr float C = -4.0f / (PI * PI);
     constexpr float P = 0.225f;
 
-    // always wrap input angle to -PI..PI
-    if (x < -PI)
-        x += 2*PI;
-    else if (x > PI)
-        x -= 2*PI;
-
-    float y;
-    if (x < 0) {
-        y = B * x + C * x * x;
-
-        if (y < 0)
-            y = P * (y *-y - y) + y;
-        else
-            y = P * (y * y - y) + y;
-    } else {
-        y = B * x - C * x * x;
-
-        if (y < 0)
-            y = P * (y *-y - y) + y;
-        else
-            y = P * (y * y - y) + y;
-    }
-    return y;
+    float y = B * x + C * x * (x < 0 ? -x : x);
+    return P * (y * (y < 0 ? -y : y) - y) + y;
 }
 
 // x [0, 2*PI]
 float fast_cosine(float x) {
     constexpr float PI = 3.14159265358f;
     constexpr float B = 4.0f / PI;
-    constexpr float C = 4.0f / (PI * PI);
+    constexpr float C = -4.0f / (PI * PI);
     constexpr float P = 0.225f;
 
-    //compute cosine: sin(x + PI/2) = cos(x)
     x += PI/2;
     if (x > PI)
         x -= 2*PI;
 
-    float y;
-    if (x < 0) {
-        y = B * x + C * x * x;
-
-        if (y < 0)
-            y = P * (y *-y - y) + y;
-        else
-            y = P * (y * y - y) + y;
-    } else {
-        y = B * x - C * x * x;
-
-        if (y < 0)
-            y = P * (y *-y - y) + y;
-        else
-            y = P * (y * y - y) + y;
-    }
-    return y;
+    return fast_sine(x);
 }
 
 #include <cmath>
@@ -71,37 +33,41 @@ float fast_cosine(float x) {
 #include <cstdio>
 #include <vector>
 
-float calculate_std_deviation(const std::vector<float>& values, float* mean_value = nullptr) {
-    float mean = 0.0;
-    for (float v : values)
-        mean += v;
-    mean /= values.size();
-
-    float variance = 0.0;
-    for (float v : values)
-        variance += (v - mean) * (v - mean);
-    variance /= values.size();
-
-    if (mean_value != nullptr)
-        *mean_value = mean;
-
-    return std::sqrt(variance);
-}
-
 int main() {
-    using Func = float(*)(float);
+    auto calculate_std_deviation = [](const std::vector<float>& values, float* mean_value = nullptr) {
+        float mean = 0.0;
+        for (float v : values)
+            mean += v;
+        mean /= values.size();
 
-    auto calculate_errors = [](Func f_precise, Func f_fast, auto& abs_errors, auto& max_abs_error, auto& rel_errors, auto& max_rel_error) {
+        float variance = 0.0;
+        for (float v : values)
+            variance += (v - mean) * (v - mean);
+        variance /= values.size();
+
+        if (mean_value != nullptr)
+            *mean_value = mean;
+
+        return std::sqrt(variance);
+    };
+
+    //
+    // Test sine accuracy.
+    //
+    {
         const float PI = 3.14159265358f;
         const int N = 10'000;
 
-        max_abs_error = 0.0;
-        max_rel_error = 0.0;
-        for (int i = 0; i < N; i++) {
-            float a = 2 * PI / (N - 1) * i;
+        std::vector<float> abs_errors;
+        float max_abs_error = 0.0f;
+        std::vector<float> rel_errors;
+        float max_rel_error = 0.0f;
 
-            float precise = f_precise(a);
-            float fast = f_fast(a);
+        for (int i = 0; i < N; i++) {
+            float a = -PI + 2 * PI / (N - 1) * i;
+
+            float precise = std::sin(a);
+            float fast = fast_sine(a);
 
             float abs_error = std::abs(precise - fast);
             abs_errors.push_back(abs_error);
@@ -117,18 +83,6 @@ int main() {
                     max_rel_error = rel_error;
             }
         }
-    };
-
-    //
-    // Test sine accuracy.
-    //
-    {
-        std::vector<float> abs_errors;
-        float max_abs_error;
-        std::vector<float> rel_errors;
-        float max_rel_error;
-
-        calculate_errors(std::sin, fast_sine, abs_errors, max_abs_error, rel_errors, max_rel_error);
 
         float abs_error_mean;
         float abs_error_std_deviation = calculate_std_deviation(abs_errors, &abs_error_mean);
@@ -148,12 +102,34 @@ int main() {
     // Test cosine accuracy.
     //
     {
-        std::vector<float> abs_errors;
-        float max_abs_error;
-        std::vector<float> rel_errors;
-        float max_rel_error;
+        const float PI = 3.14159265358f;
+        const int N = 10'000;
 
-        calculate_errors(std::cos, fast_cosine, abs_errors, max_abs_error, rel_errors, max_rel_error);
+        std::vector<float> abs_errors;
+        float max_abs_error = 0.0f;
+        std::vector<float> rel_errors;
+        float max_rel_error = 0.0f;
+
+        for (int i = 0; i < N; i++) {
+            float a = 2 * PI / (N - 1) * i;
+
+            float precise = std::cos(a);
+            float fast = fast_cosine(a);
+
+            float abs_error = std::abs(precise - fast);
+            abs_errors.push_back(abs_error);
+
+            if (abs_error > max_abs_error)
+                max_abs_error = abs_error;
+
+            if (std::abs(precise) > 1e-5f) {
+                float rel_error = abs_error / std::abs(precise);
+                rel_errors.push_back(rel_error);
+
+                if (rel_error > max_rel_error)
+                    max_rel_error = rel_error;
+            }
+        }
 
         float abs_error_mean;
         float abs_error_std_deviation = calculate_std_deviation(abs_errors, &abs_error_mean);
@@ -186,10 +162,10 @@ int main() {
         const int N = 1'000'000;
         const float da = 2*PI / (N - 1);
 
+        // sine
         {
             Timer t;
-            float s = 0.0;
-            float a = 0.0;
+            float s = 0, a = -PI;
             for (int i = 0; i < N; i++, a += da) {
                 s += std::sin(a);
             }
@@ -201,15 +177,39 @@ int main() {
 
         {
             Timer t;
-            float s = 0.0;
-            float a = 0.0;
+            float s = 0, a = -PI;
             for (int i = 0; i < N; i++, a += da) {
                 s += fast_sine(a);
             }
             auto elapsed = t.elapsed_microseconds();
-            printf("Fast sine time: %d\n", elapsed);
+            printf("Fast sine time: %d\n\n", elapsed);
 
-            if (s == PI) printf("Miracle"); // this prevents the compiler from optimizing out the test loop
+            if (s == PI) printf("Miracle"); 
+        }
+
+        // cosine
+        {
+            Timer t;
+            float s = 0, a = 0;
+            for (int i = 0; i < N; i++, a += da) {
+                s += std::cos(a);
+            }
+            auto elapsed = t.elapsed_microseconds();
+            printf("Regular cosine time: %d\n", elapsed);
+
+            if (s == PI) printf("Miracle");
+        }
+
+        {
+            Timer t;
+            float s = 0, a = 0;
+            for (int i = 0; i < N; i++, a += da) {
+                s += fast_cosine(a);
+            }
+            auto elapsed = t.elapsed_microseconds();
+            printf("Fast cosine time: %d\n", elapsed);
+
+            if (s == PI) printf("Miracle");
         }
     }
 }
