@@ -5,53 +5,63 @@
 
 // x [-PI,PI]
 float fast_sine(float x) {
+    constexpr float PI = 3.14159265358f;
+    constexpr float B = 4.0f / PI;
+    constexpr float C = 4.0f / (PI * PI);
+    constexpr float P = 0.225f;
+
     // always wrap input angle to -PI..PI
-    if (x < -3.14159265f)
-        x += 6.28318531f;
-    else if (x > 3.14159265f)
-        x -= 6.28318531f;
+    if (x < -PI)
+        x += 2*PI;
+    else if (x > PI)
+        x -= 2*PI;
 
     float y;
     if (x < 0) {
-        y = 1.27323954f * x + .405284735f * x * x;
+        y = B * x + C * x * x;
 
         if (y < 0)
-            y = .225f * (y *-y - y) + y;
+            y = P * (y *-y - y) + y;
         else
-            y = .225f * (y * y - y) + y;
+            y = P * (y * y - y) + y;
     } else {
-        y = 1.27323954f * x - 0.405284735f * x * x;
+        y = B * x - C * x * x;
 
         if (y < 0)
-            y = .225f * (y *-y - y) + y;
+            y = P * (y *-y - y) + y;
         else
-            y = .225f * (y * y - y) + y;
+            y = P * (y * y - y) + y;
     }
     return y;
 }
 
 // x [0, 2*PI]
 float fast_cosine(float x) {
+    constexpr float PI = 3.14159265358f;
+    constexpr float B = 4.0f / PI;
+    constexpr float C = 4.0f / (PI * PI);
+    constexpr float P = 0.225f;
+
     //compute cosine: sin(x + PI/2) = cos(x)
-    x += 1.57079632f;
-    if (x > 3.14159265f)
-        x -= 6.28318531f;
+    x += PI/2;
+    if (x > PI)
+        x -= 2*PI;
 
     float y;
     if (x < 0) {
-        y = 1.27323954f * x + 0.405284735f * x * x;
+        y = B * x + C * x * x;
 
         if (y < 0)
-            y = .225f * (y *-y - y) + y;
+            y = P * (y *-y - y) + y;
         else
-            y = .225f * (y * y - y) + y;
+            y = P * (y * y - y) + y;
     } else {
-        y = 1.27323954f * x - 0.405284735f * x * x;
+        y = B * x - C * x * x;
 
         if (y < 0)
-            y = .225f * (y *-y - y) + y;
+            y = P * (y *-y - y) + y;
         else
-            y = .225f * (y * y - y) + y;
+            y = P * (y * y - y) + y;
     }
     return y;
 }
