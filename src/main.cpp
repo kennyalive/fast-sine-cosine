@@ -3,7 +3,7 @@
 // http://forum.devmaster.net/t/fast-and-accurate-sine-cosine/9648
 //
 
-// x [-PI,PI]
+// x range: [-PI,PI]
 float fast_sine(float x) {
     constexpr float PI = 3.14159265358f;
     constexpr float B = 4.0f / PI;
@@ -14,16 +14,15 @@ float fast_sine(float x) {
     return P * (y * (y < 0 ? -y : y) - y) + y;
 }
 
-// x [0, 2*PI]
+// x range: [-PI, PI]
 float fast_cosine(float x) {
     constexpr float PI = 3.14159265358f;
     constexpr float B = 4.0f / PI;
     constexpr float C = -4.0f / (PI * PI);
     constexpr float P = 0.225f;
 
+    x = (x > 0) ? -x : x;
     x += PI/2;
-    if (x > PI)
-        x -= 2*PI;
 
     return fast_sine(x);
 }
@@ -111,7 +110,7 @@ int main() {
         float max_rel_error = 0.0f;
 
         for (int i = 0; i < N; i++) {
-            float a = 2 * PI / (N - 1) * i;
+            float a = -PI + 2 * PI / (N - 1) * i;
 
             float precise = std::cos(a);
             float fast = fast_cosine(a);
@@ -190,7 +189,7 @@ int main() {
         // cosine
         {
             Timer t;
-            float s = 0, a = 0;
+            float s = 0, a = -PI;
             for (int i = 0; i < N; i++, a += da) {
                 s += std::cos(a);
             }
@@ -202,7 +201,7 @@ int main() {
 
         {
             Timer t;
-            float s = 0, a = 0;
+            float s = 0, a = -PI;
             for (int i = 0; i < N; i++, a += da) {
                 s += fast_cosine(a);
             }
