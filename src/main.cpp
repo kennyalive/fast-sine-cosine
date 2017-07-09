@@ -67,6 +67,7 @@ float fast_cosine(float x) {
 }
 
 #include <cmath>
+#include <chrono>
 #include <cstdio>
 #include <vector>
 
@@ -88,12 +89,12 @@ float calculate_std_deviation(const std::vector<float>& values, float* mean_valu
 }
 
 int main() {
-    const float PI = 3.14159265358f;
-    const int N = 10'000;
-
     using Func = float(*)(float);
 
-    auto calculate_errors = [&PI, &N](Func f_precise, Func f_fast, auto& abs_errors, auto& max_abs_error, auto& rel_errors, auto& max_rel_error) {
+    auto calculate_errors = [](Func f_precise, Func f_fast, auto& abs_errors, auto& max_abs_error, auto& rel_errors, auto& max_rel_error) {
+        const float PI = 3.14159265358f;
+        const int N = 10'000;
+
         max_abs_error = 0.0;
         max_rel_error = 0.0;
         for (int i = 0; i < N; i++) {
@@ -165,6 +166,50 @@ int main() {
 
         printf("cosine max relative error = %.3f%%\n", max_rel_error * 100.0f);
         printf("cosine relative error mean = %.3f%%\n", rel_error_mean * 100.0f);
-        printf("cosine relative error std deviation = %.3f%%\n", rel_error_std_deviation * 100.0f);
+        printf("cosine relative error std deviation = %.3f%%\n\n", rel_error_std_deviation * 100.0f);
+    }
+
+    //
+    // Test performance.
+    //
+    {
+        struct Timer {
+            using Clock = std::chrono::high_resolution_clock;
+            Clock::time_point start = Clock::now();
+            int elapsed_microseconds() const {
+                const auto duration = Clock::now() - start;
+                return (int)std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+            }
+        };
+
+        const float PI = 3.14159265358f;
+        const int N = 1'000'000;
+        const float da = 2*PI / (N - 1);
+
+        {
+            Timer t;
+            float s = 0.0;
+            float a = 0.0;
+            for (int i = 0; i < N; i++, a += da) {
+                s += std::sin(a);
+            }
+            auto elapsed = t.elapsed_microseconds();
+            printf("Regular sine time: %d\n", elapsed);
+
+            if (s == PI) printf("Miracle"); // this prevents the compiler from optimizing out the test loop
+        }
+
+        {
+            Timer t;
+            float s = 0.0;
+            float a = 0.0;
+            for (int i = 0; i < N; i++, a += da) {
+                s += fast_sine(a);
+            }
+            auto elapsed = t.elapsed_microseconds();
+            printf("Fast sine time: %d\n", elapsed);
+
+            if (s == PI) printf("Miracle"); // this prevents the compiler from optimizing out the test loop
+        }
     }
 }
